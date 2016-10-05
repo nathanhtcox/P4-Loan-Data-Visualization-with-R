@@ -1,0 +1,530 @@
+---
+title: "Udacity Project 4 - Loans Exploratory Data Analysis"
+author: "Nathan Cox"
+date: "September 17, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}d
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 1 Load and Clean Data and Load Libraries
+
+### 1.1 Load Libraries and Data
+```{r load libraries}
+library(ggplot2)
+library(GGally)
+library(RColorBrewer)
+setwd("/home/nathan/Desktop/Nanodegree/Section 4 - Data Visualization with R")
+loan = read.csv('prosperLoanData.csv')
+```
+
+### 1.2 Transform Data
+Listing data was provided as a numerical value with a separate legend. This section transforms it to a factor variable and adds back in the descriptions for each number. Also in this section the Occupation variable is reordered so that the boxplot later on is easier to read.
+
+Current Delinquencies is cut into 4 buckets to make a variable that can be more easily used to show color on a plot. The table function is used before cut to determine how to equally size the buckets. 
+
+```{r}
+loan$ListingCategory[loan$ListingCategory..numeric. == 0] <- "0 - Not Available"
+loan$ListingCategory[loan$ListingCategory..numeric. == 1] <- "1 - Debt Consolidation"
+loan$ListingCategory[loan$ListingCategory..numeric. == 2] <- "2 - Home Improvement"
+loan$ListingCategory[loan$ListingCategory..numeric. == 3] <- "3 - Business" 
+loan$ListingCategory[loan$ListingCategory..numeric. == 4] <- "4 - Personal Loan"  
+loan$ListingCategory[loan$ListingCategory..numeric. == 5] <- "5 - Student Use" 
+loan$ListingCategory[loan$ListingCategory..numeric. == 6] <- "6 - Auto"  
+loan$ListingCategory[loan$ListingCategory..numeric. == 7] <- "7- Other" 
+loan$ListingCategory[loan$ListingCategory..numeric. == 8] <- "8 - Baby&Adoption" 
+loan$ListingCategory[loan$ListingCategory..numeric. == 9] <- "9 - Boat" 
+loan$ListingCategory[loan$ListingCategory..numeric. == 10] <- "10 - Cosmetic Procedure" 
+loan$ListingCategory[loan$ListingCategory..numeric. == 11] <- "11 - Engagement Ring" 
+loan$ListingCategory[loan$ListingCategory..numeric. == 12] <- "12 - Green Loans"
+loan$ListingCategory[loan$ListingCategory..numeric. == 13] <- "13 - Household Expenses"
+loan$ListingCategory[loan$ListingCategory..numeric. == 14] <- "14 - Large Purchases"
+loan$ListingCategory[loan$ListingCategory..numeric. == 15] <- "15 - Medical/Dental"
+loan$ListingCategory[loan$ListingCategory..numeric. == 16] <- "16 - Motorcycle"
+loan$ListingCategory[loan$ListingCategory..numeric. == 17] <- "17 - RV"
+loan$ListingCategory[loan$ListingCategory..numeric. == 18] <- "18 - Taxes"
+loan$ListingCategory[loan$ListingCategory..numeric. == 19] <- "19 - Vacation"
+loan$ListingCategory[loan$ListingCategory..numeric. == 20] <- "20 - Wedding Loans"
+
+loan$ListingCategory <- as.factor(loan$ListingCategory)
+
+loan$ListingCategory <- with(loan, reorder(ListingCategory, BorrowerRate, median))
+
+loan$Occupation <- with(loan, reorder(Occupation, BorrowerRate, median))
+
+table(loan$CurrentDelinquencies)
+
+loan$CurDelBucket <- cut(loan$CurrentDelinquencies, c(-Inf,0,1,5,+Inf))
+
+```
+
+# 2 Univariate Exploration
+After the libraries and data are loaded, the next step is to take a look at the list of variables in the data and plot single variables (univariate plots) on a histogram or box plot to get an idea of the range of different variables. This will give an idea of what could be explored later. 
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(x=CreditScoreRangeLower), data=loan) + 
+  geom_histogram(binwidth = 10) + 
+  coord_cartesian(xlim=c(350,900))
+  
+```
+
+Most credit scores for people getting loans on Prosper are between 600 and 800. It would be interesting to compare this trend to the credit scores of the general population.
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(BorrowerRate), data=loan) + geom_histogram(binwidth=0.01) +
+  scale_x_continuous(breaks=seq(0,0.4,0.05))
+```
+
+The rate that most borrowers are charged looks like a normal distribution with mean being somewhere around 15%. This variable will be a key part of the bivariate and multivariate analysis because for a potential borrower, it is useful to know the factors that affect the interest rate that they will ultimately be paying.
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(EstimatedLoss), data=loan) + geom_histogram(binwidth = 0.005)
+```
+
+The estimated loss on most loans is less than 20%.
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(EstimatedReturn), data=loan) + geom_histogram()
+```
+
+Nearly all loans have a positive Estimated Return. This is to be expected because a lender would likely not make a load if the estimated return is negative.
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(OpenRevolvingAccounts), data=loan) + geom_histogram(binwidth=1)
+```
+
+This trend shows a positive skew. However the tail of the distribution is not long enough to use a log scale on the x axis to attempt to make the distribution more normal. The plot below changes the x axis to a logaritmic scale and you can see that the numbers are too clustered around 1 for it to transform the graph properly into a normal distribution.
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(OpenRevolvingAccounts), data=loan) + 
+  geom_histogram(binwidth=0.05) + 
+  scale_x_log10()
+```
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(OpenRevolvingMonthlyPayment),data=loan) + 
+  geom_histogram(binwidth=50) +
+  coord_cartesian(xlim=c(1,quantile(loan$OpenRevolvingMonthlyPayment,probs=0.99)))
+```
+
+The trend for open revolving monthly payment is similar the the revolving accounts trend where it is positively skewed and has a long tail. The values in this chart are sufficiently large that it responds better to a log 10 transformation of the x axis. The resulting distribution is below and is pretty close to a normal distribution.
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(OpenRevolvingMonthlyPayment),data=loan) + 
+  geom_histogram(binwidth=0.05) +
+  coord_cartesian(xlim=c(1,quantile(loan$OpenRevolvingMonthlyPayment,probs=0.999))) +
+  scale_x_log10()
+```
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(AmountDelinquent), data=loan[loan$AmountDelinquent!=0,]) +
+  geom_histogram(binwidth=50)  +
+  coord_cartesian(xlim=c(0,quantile(loan$AmountDelinquent,probs=0.95,na.rm=T)))
+```
+
+Amount delinquent is also a very clear long tail trend. Below is the same plot with the x axis transformed to log10 scale.
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(AmountDelinquent), data=loan[loan$AmountDelinquent!=0,]) +
+  geom_histogram(binwidth=0.05)  +
+  coord_cartesian(xlim=c(1,quantile(loan$AmountDelinquent,probs=0.9999,na.rm=T))) +
+  scale_x_log10()
+```
+
+In this case transforming the x axis to a log scale gives what appears to be a normal distribution. This means tools like z-scores to predict delinquent amount where a certain percentage of the sample would be below or above that value will work.
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(BankcardUtilization), data=loan[loan$BankcardUtilization!=0,]) +
+  geom_histogram(binwidth=0.03) +
+  coord_cartesian(xlim=c(0,quantile(loan$BankcardUtilization,probs=0.99,na.rm=T)))
+```
+
+This trend has a fairly linear distribution and does not appear that it would respond well to a trasformation or the assumptions of a normal distribution.
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(DebtToIncomeRatio), data=loan[loan$DebtToIncomeRatio!=0,]) +
+  geom_histogram(binwidth=0.05) +
+  coord_cartesian(xlim=c(0,quantile(loan$DebtToIncomeRatio,probs=0.99,na.rm=T)))
+```
+
+The debt to income ratio trend shows a mean around 18% and slight positive skew.
+
+# 3 Bivariate Exploration
+In this section the relationship between several pairs of variables will be plotted. Again this is to get an idea of what kinds of relationships exist in the data to see what trends are worth exploring further. The first plots will be a correlation matrices that plot several variables against each other in a matrix to see if there are any interesting relationships. The correlation matrices are targetted at the Borrower Rate and Credit Score variables. In the first 2 matrices, the borrower rate plotted against 9 other variables to see which relationships might be worth investigating further. The second 2 matrices plot credit score against several variables for the same purpose.
+
+### 3.1 Borrower Rate Correlation Matrices
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+#take a sample of 2000 data points to allow correlation matrices to run faster
+loan_sample <- loan[sample(1:nrow(loan),2000, replace=FALSE),]
+
+#select a subset of columns and rename them to make the matrix readable
+BRateCols1 <- c("BorrowerRate","EstimatedLoss", "EmploymentStatus",  "EmploymentStatusDuration", "CreditScoreRangeLower", "OpenRevolvingMonthlyPayment", "AmountDelinquent", "DebtToIncomeRatio", "IncomeRange")
+
+BRateSample <- loan_sample[BRateCols1]
+
+colnames(BRateSample) <- c("BRate","EstLoss", "EmplStat",  "EmplDur", "CScoreLow", "RevMnthPmt", "AmntDelinq", "DToIRatio", "IncRng") 
+
+ggpairs(BRateSample) +
+  theme(axis.text.x=element_text(angle = 45, hjust = 1))
+```
+
+The plots within the matrix will be referred to using a (row number,column number notation). For example, the frequency diagram for Borrower Rate (BRate) is in the top left corner and will be noted as (1,1). The correlation between Borrower Rate and Estimated Loss (EstLoss) is to the right of the BRate frequency diagram and would be denoted (1,2).
+
+As shown in the correlation matrix, there is a very high correlation between Borrower Rate and Estimated Loss. This is expected because Borrowers that are seen as riskier will be given higher interest rates. The expected loss will also be higher for borrowers that are seen as risky. This is the expected relationship that economic theory predicts - higher risk (estimated loss) demands a higher return (interest rate).
+
+Interestingly, Employment Duration (EmplDur), Revolving Monthly Payment (RevMnthPmt), Amount Delinquent (AmntDelinq) and Debt to Income Ratio (DtoIRatio) have no correlation with Borrower Rate. I would have predicted that Debt to Income Ratio would have some correlation with borrower rate as would seem to be a clear indicator of risk.
+
+Borrower Rate has a moderate negative correlation with Credit Score (negative correlation). Credit Score is expected to be correlated because the credit score metric attempts to quantify how likely a borrower is to pay back a loan. 
+
+The box and whisker plot for Income Range looks like it may show an interesting negative correlation with Borrower Rate, however it will need closer inspection. Perhaps a better test will be to use Stated Monthly Income (a numeric variable) to see if there is a correlation.
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+#Repeat procedure for 10 more variables
+BRateCols2<- c("BorrowerRate", "EmploymentStatus",  "IsBorrowerHomeowner",  "RevolvingCreditBalance", "BankcardUtilization", "AvailableBankcardCredit", "DebtToIncomeRatio", "IncomeVerifiable", "StatedMonthlyIncome")
+
+BRateSample2 <- loan_sample[BRateCols2]
+
+colnames(BRateSample2) <- c("BRate", "EmplStat",  "IsHO", "CredBal", "BCUtil", "BCCred", "DtoIRat", "IncVer", "MnthlyInc") 
+
+ggpairs(BRateSample2)
+```
+
+There are 2 variables appear to be correlated with Borrower Rate.
+1. Bank Card Utilization has a weak positive correlation with Borrower Rate. This seems to make sense in that borrowers who have maxed out their current credit lines would seem to be a higher risk. However, if a borrower is only applying for their second or third credit line, they would seem to be less risky than someone applying for their seventh or eighth line of credit as they likely have less credit. This multivariate relationship will be studied more in section 1.4 Multivariate Exploration.
+2. Available Bank Credit has a somewhat stronger negative correlation with Borrower Rate. This is interesting in that higher available credit correlates with a lower Borrower Rate and lower credit utilization correlates with a lower Borrower Rate. A deeper exploration of the multivariate relationship between amount of credit, credit utilization and borrower rate will follow in section 1.4.
+
+Income Verifiable and whether or not the borrower is a homeowner (BorrowerIsHomeowner), appear that they may have some influence over the Borrower Rate. These are worth looking into more in the multivariate section as well.
+
+## 3.2 Credit Score Correlation Matrices
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+#repeat procedure looking for correlations with Credit Score
+CScoreCols1<- c( "CreditScoreRangeLower", "EmploymentStatus",  "EmploymentStatusDuration", "IsBorrowerHomeowner", "CurrentCreditLines", "OpenCreditLines", "TotalCreditLinespast7years", "OpenRevolvingAccounts", "OpenRevolvingMonthlyPayment")
+
+CScoreSample1 <- loan_sample[CScoreCols1]
+
+colnames(CScoreSample1) <- c("CScore","EmpStat", "EmpDur",  "IsHO", "CurCL", "OpenCL", "TotCL7yr", "OpenRA", "RAMnthPmt") 
+
+ggpairs(CScoreSample1)
+```
+
+Most variables in this plot show very weak or no correlation with credit score. These variables do not show much promise for continued exploration.
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+#repeat procedure looking for more correlations with credit score
+CScoreCols2<- c( "CreditScoreRangeLower", "CurrentDelinquencies", "AmountDelinquent", "DelinquenciesLast7Years", "RevolvingCreditBalance", "BankcardUtilization", "AvailableBankcardCredit", "DebtToIncomeRatio", "IncomeVerifiable", "StatedMonthlyIncome")
+
+CScoreSample2 <- loan_sample[CScoreCols2]
+
+colnames(CScoreSample2) <- c("CScore", "CurDel",  "AmntDel", "Del7yr", "RevCB", "BCUtil", "BCCred", "DtoIRat", "IncVer", "MnthlyInc") 
+
+ggpairs(CScoreSample2)
+```
+
+A number of the variables in this plot show weak to moderate correlations with credit score. The list below shows the variable name and the magnitude and direction of correlation with credit score.
+  - Current Delinquencies - moderate, negative
+  - Delinquencies Last 7 Years - moderate, negative
+  - Bankcard Utilization - moderate, negative
+  - Available Bankcard Credit - moderate, positive
+  - Stated Monthly Income - very weak, positive
+
+Some of these variables will be explored more deeply in section 1.4. This would be a good list to start building a model for predicting credit scores.
+
+
+### 3.3 Credit Score vs. Borrower Rate
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(x=CreditScoreRangeLower, y=BorrowerRate), data=loan) +
+  geom_point(alpha=1/100) +
+  coord_cartesian(xlim=c(450,900)) #most credit scores in the US are between 350 and 900
+```
+
+The plot seems to show a negative correlation as expected, but it is not that easy to see with the scatter plot. Adding the mean, median, 10% and 90% quantile summary lines would give a clearer indication of what is happening with these 2 variables.
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(x=CreditScoreRangeLower, y=BorrowerRate), data=loan) +
+  geom_point(alpha=1/100, color='orange', position=position_jitter(h=0)) +
+  coord_cartesian(xlim=c(450,900)) +
+  geom_line(stat = 'summary', fun.y = mean) +
+  geom_line(stat = 'summary', fun.y = quantile, fun.args = list(probs=0.1), color = 'blue', 
+            linetype = 2) + 
+  geom_line(stat = 'summary', fun.y = quantile, fun.args=list(probs=0.5), color = 'blue') + 
+  geom_line(stat = 'summary', fun.y = quantile, fun.args=list(probs=0.9), color = 'blue', 
+            linetype = 2) 
+```
+
+The summary lines make the trend much clearer. The interest rate that the borrower pays (borrower rate) decreases as the credit score increases, however there is still a lot of variation in the interest rate for a given credit score. Credit score is clearly one component that determines the borrower rate but it does not tell the whole story. Other variables that correlate with borrower rate will be worth investigating, especially for cases where the credit score is below 600.
+
+This plot also clearly shows that there are fewer loans established when the borrower has a credit score lower than 600 or higher than 800. This could be for a number of reasons but 3 reasons that could be worth investigating would be:
+  - borrowers with lower credit scores are more likely to be denied loans
+  - people with high credit scores are less likely to borrow money
+  - the majority of people have credit scores between 600 and 800 and this is why there are more loans established
+
+Unfortunately more data would be required to investigate this further. The distribution of credit scores from a random sample of the general population and information on applicants who were denied a loan would be required to investigate further.
+
+### 3.4 Bank Card Utilization vs Borrower Rate
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(x=BankcardUtilization, y=BorrowerRate), data=loan[loan$BankcardUtilization!=0,]) + 
+  geom_point(alpha=1/50, color = "orange") +
+  coord_cartesian(xlim=c(0,quantile(loan$BankcardUtilization, probs=0.99, na.rm=T)),
+                  ylim=c(quantile(loan$BorrowerRate, probs=0.1),
+                         quantile(loan$BorrowerRate, probs=0.99)))
+
+```
+
+The first correlation matrix showed there was a weak positive correlation (~0.25) between Bankcard Utilization and Borrower Rate. On this plot it appears there may be some kind of positive correlation but it is far too difficult to see. Again adding summary lines will make the trends clearer.
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(x=BankcardUtilization, y=BorrowerRate), data=loan[loan$BankcardUtilization!=0,]) + 
+  geom_point(alpha=1/50, color='orange', position=position_jitter(h=0)) +
+  coord_cartesian(xlim=c(0,quantile(loan$BankcardUtilization, probs=0.99, na.rm=T)),
+                  ylim=c(quantile(loan$BorrowerRate, probs=0.1),
+                         quantile(loan$BorrowerRate, probs=0.99))) +
+  geom_line(stat = 'summary', fun.y = mean) +
+  geom_line(stat = 'summary', fun.y = quantile, fun.args = list(probs=0.1), color = 'blue', 
+            linetype = 2) + 
+  geom_line(stat = 'summary', fun.y = quantile, fun.args=list(probs=0.5), color = 'blue') + 
+  geom_line(stat = 'summary', fun.y = quantile, fun.args=list(probs=0.9), color = 'blue', 
+            linetype = 2)
+```
+
+The summary lines show a much clearer positive correlation. They also show why the correlation is weak even though the positive trend is continuous. The variation is quite high as show by the 10% and 90% quantile lines. Even though the trend is upwards, the high degree of variation seems to cause the correlation to be low.
+
+
+### 3.5 Available Bankcard Credit vs Borrower Rate
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(x=round(AvailableBankcardCredit/200)*200, y=BorrowerRate), 
+           data=loan[loan$AvailableBankcardCredit!=0,]) + 
+  geom_point(alpha=1/50, color='orange', position=position_jitter(h=0)) +
+  coord_cartesian(xlim=c(0,quantile(loan$AvailableBankcardCredit, probs=0.99, na.rm=T)),
+                  ylim=c(quantile(loan$BorrowerRate, probs=0.1),
+                         quantile(loan$BorrowerRate, probs=0.99))) +
+  geom_line(stat='summary', fun.y = mean)
+```
+
+The negative correlation between Available Bankcard Credit and Borrower Rate is clearly shown by the summary line. In this case it appears to be an exponentially decreasing trend. At low values of Available Bankcard Credit, the Borrower Rate falls quickly. Between $25,000-50,000 of credit, the trend seems to level off and become far more volatile. This would seem to indicate that having at least $25,000 to $50,000 of Available Credit would be helpful in getting a lower Borrower Rate but beyond that, other factors take over.
+  
+### 3.6 Home Ownership vs. Borrower Rate
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(x=IsBorrowerHomeowner, y=BorrowerRate), data=loan[loan$IsBorrowerHomeowner!=0,]) + 
+  geom_boxplot()
+```
+
+Home ownership appears to impact interest rates. Those who own their home have lower median and first and third quartile Borrower Rates. There are also no high end outliers for homeowners and no rates above ~36% while non-homeowners show several extreme rates between 35-50%.
+
+### 3.7 Employment Status vs. Borrower Rate
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(x=EmploymentStatus, y=BorrowerRate), data=loan[loan$EmploymentStatus!=0,]) + 
+  geom_boxplot() + 
+  geom_point(alpha=1/50, color='orange', position=position_jitter(h=0))
+```
+
+As is expected, the box plot shows that those who are unemployed have the highest Borrower Rates. Self employed people have higher rates than those employed full or part time. Those who are retired seem to have slightly higer rates than full or part time employed individuals, but lower that those who are self employed. Adding the scatter plot with alpha, color and jitter shows how many data points there are in each employment category. There are far fewer loans given to unemployed, retired or part time individuals. Most loans are made to those who indicate that they are employed, employed full-time or are self employed.
+
+
+### 3.8 Reason for Loan vs. Borrower Rate
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(x=ListingCategory, y=BorrowerRate), data=loan) + 
+  geom_boxplot() + 
+  geom_point(alpha=1/100, color='orange', position=position_jitter(h=0)) +
+  theme(axis.text.x=element_text(angle = 45, hjust = 1))
+```
+
+There seems to be a faily large difference in the median interest rate depending on what the reason for the loan is. Personal loans, boat purchases, baby & adoption and debt consolidation appear to have the lowest borrower rates. Household expenses and cosmetic procedures have the highest rates. The overlay of the scatterplot also shows which reasons are more common for loans. Debt consolidation, business and home improvement are the most common reasons listed. Boats, RVs, Green Loans and cosmetic procedures are the least frequently listed reasons. This variable would be useful to overlay as a third factor in the multivariate section.
+
+### 3.9 Occupation vs. Borrower Rate
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(x=Occupation, y=BorrowerRate), data=loan) + 
+  geom_boxplot() + 
+  geom_point(alpha=1/100, color='orange', position=position_jitter(h=0)) +
+  theme(axis.text.x=element_text(angle = 45, hjust = 1))
+```
+
+The chart shows a fairly clear trend that professional, high education jobs (judge, engineer, pharmacist, professor) tend to have lower borrower rates while lower skill jobs with lower educational requirements (teachers aide, bus driver, clerical, student, flight attendant) tend to have higher borrower rates.
+
+
+# 4 Multivariate Exploration
+In this section, more that 2 variables will be investigated to see how they interact. The existing correlations that have been uncovered will be expanded on to try to create plots that provide more insight.
+
+### 4.1 Credit Score, Bankcard Utilization and Borrower Rate 
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(x=CreditScoreRangeLower, y=BorrowerRate), data=loan[loan$BankcardUtilization<1.5,]) +
+  geom_point(alpha=1/50,aes(color=BankcardUtilization), position=position_jitter(h=0)) +
+  coord_cartesian(xlim=c(450,900)) +
+  geom_line(stat = 'summary', fun.y = mean) +
+  geom_line(stat = 'summary', fun.y = quantile, fun.args = list(probs=0.1), linetype = 2) + 
+  geom_line(stat = 'summary', fun.y = quantile, fun.args=list(probs=0.5, linetype = 2)) + 
+  geom_line(stat = 'summary', fun.y = quantile, fun.args=list(probs=0.9), linetype = 2) +
+  scale_color_gradient(limits=c(0, 1), low="blue", high="red")
+```
+
+The plot seems to show that those with lower Bankcard Utilization have higher credit scores and pay lower Borrower Rates. Those with high Bankcard Utilization tend to be on the left hand side of the plot with the lower credit scores and the higher borrower rates.
+
+### 4.2 Credit Score, Home Ownership and Borrower Rate
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(x=CreditScoreRangeLower, y=BorrowerRate), data=loan) +
+  geom_point(alpha=1/20, aes(color=IsBorrowerHomeowner), position=position_jitter(h=0)) +
+  coord_cartesian(xlim=c(450,900)) +
+  geom_line(stat = 'summary', fun.y = mean) +
+  geom_line(stat = 'summary', fun.y = quantile, fun.args = list(probs=0.1), linetype = 2) + 
+  geom_line(stat = 'summary', fun.y = quantile, fun.args=list(probs=0.5), linetype = 2) + 
+  geom_line(stat = 'summary', fun.y = quantile, fun.args=list(probs=0.9), linetype = 2) +
+  guides(color = guide_legend(override.aes = list(alpha = 1)))
+```
+
+The plot shows that those who own their homes appear to have a higher credit score and appear to have lower borrower rates, especially as credit score increases.
+
+### 4.3 Credit Score, Employment Status and Borrower Rate
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+#select statuses that should appear in the plot
+stat <- c("Full-time","Not employed","Part-time")
+
+loan_sample <- loan[sample(1:nrow(loan),20000, replace=FALSE),]
+
+ggplot(aes(x=CreditScoreRangeLower, y=BorrowerRate), 
+       data=loan_sample[loan_sample$EmploymentStatus %in% stat,]) +
+  geom_point(alpha=1/3,aes(color=EmploymentStatus), position=position_jitter(h=0)) +
+  coord_cartesian(xlim=c(450,900)) +
+  geom_line(stat = 'summary', fun.y = mean) +
+  geom_line(stat = 'summary', fun.y = quantile, fun.args = list(probs=0.1), linetype = 2) + 
+  geom_line(stat = 'summary', fun.y = quantile, fun.args=list(probs=0.5, linetype = 2)) + 
+  geom_line(stat = 'summary', fun.y = quantile, fun.args=list(probs=0.9), linetype = 2) +
+  guides(color = guide_legend(override.aes = list(alpha = 1)))
+```
+
+This plot seems to show that for low credit scores, the borrowers employment status does not have a clear effect on the borrower rate. However, it appears that once the credit score reaches around 650, the borrower rate for full-time employed borrowers tends to decrease while the same is not true for those who are not employed. The next plot zooms in on the credit score 650-800 section of the plot.
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(x=CreditScoreRangeLower, y=BorrowerRate), 
+       data=loan_sample[loan_sample$EmploymentStatus %in% stat,]) +
+  geom_point(alpha=1/3,aes(color=EmploymentStatus), position=position_jitter(h=0)) +
+  coord_cartesian(xlim=c(650,800)) +
+  geom_line(stat = 'summary', fun.y = mean) +
+  geom_line(stat = 'summary', fun.y = quantile, fun.args = list(probs=0.1), linetype = 2) + 
+  geom_line(stat = 'summary', fun.y = quantile, fun.args=list(probs=0.5, linetype = 2)) + 
+  geom_line(stat = 'summary', fun.y = quantile, fun.args=list(probs=0.9), linetype = 2) +
+  guides(color = guide_legend(override.aes = list(alpha = 1)))
+```
+
+### 4.4 Available Bankcard Credit, Bankcard Utilization and Borrower Rate
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+#cutting the BankcardUtilization variable into 4 distinct sections, values less than 0 and greater than 1 are outliers and will not be included into the cut variable
+loan$BankUtilBucket <- cut(loan$BankcardUtilization,c(0,0.25,0.5,0.75,1))
+
+
+ggplot(aes(x=round(AvailableBankcardCredit/5000)*5000, y=BorrowerRate), 
+       data=loan[!(is.na(loan$BankUtilBucket)),]) +
+  geom_line(aes(color=BankUtilBucket), stat='summary', fun.y=median) +
+  coord_cartesian(xlim=c(0,100000)) +
+  geom_line(stat = 'summary', fun.y = quantile, fun.args = list(probs=0.1), linetype = 2, color='blue') + 
+  geom_line(stat = 'summary', fun.y = quantile, fun.args=list(probs=0.9), linetype = 2, color='blue')
+```
+
+The trendlines show that the optimal combination to get a low interest rate is to have a significant amount of available credit (more than $50,000) and to have a credit utilization of 25% or less.
+
+### 4.5 Available Bankcard Credit, Current Delinquencies and Credit Score
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(x=AvailableBankcardCredit, y=CreditScoreRangeLower), 
+       data=loan) +
+  geom_point(alpha=1/5, aes(color=CurrentDelinquencies), position=position_jitter()) +
+  geom_line(stat = 'summary', fun.y = mean, linetype = 2, color='blue') + 
+  coord_cartesian(ylim=c(500,850)) +
+  guides(color = guide_legend(override.aes = list(alpha = 1)))
+
+ggplot(aes(x=round(AvailableBankcardCredit/100)*100, y=CreditScoreRangeLower), 
+       data=loan) +
+  geom_point(alpha=1/5, aes(color=CurrentDelinquencies), position=position_jitter()) +
+  geom_line(stat = 'summary', fun.y = mean, linetype = 2, color='blue') + 
+  coord_cartesian(ylim=c(500,850), xlim=c(0,10000)) +
+  guides(color = guide_legend(override.aes = list(alpha = 1)))
+
+ggplot(aes(x=round(AvailableBankcardCredit/100)*100, y=CreditScoreRangeLower), 
+       data=loan) +
+  geom_point(alpha=1/5, aes(color=CurDelBucket), position=position_jitter()) +
+  geom_line(stat = 'summary', fun.y = mean, linetype = 2, color='blue') + 
+  coord_cartesian(ylim=c(500,850), xlim=c(0,10000)) +
+  guides(color = guide_legend(override.aes = list(alpha = 1)))
+```
+
+This plot took several iterations. The first plot shows that the mean trendline requires some smoothing so Available Bank Credit is rounded to the nearest 100. Few borrowers have more than $10,000 credit so the plot is cut off at $10,000. The final plot switches to version of Current Delinquencies that has been cut into 4 buckets. In the second visual, the dark blue dots dominate the plot and this is because a vast majority of borrowers have 0, 1 or 2 delinquencies (see table(CurrentDelinquencies) in section 1). Cutting the Current Delinquencies variable into 4 buckets makes the plot clearer. Further analysis in section 5.
+
+
+### 4.6 Credit Score, Listing Category (Reason for Loan) and Borrower Rate
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(x=ListingCategory, y=BorrowerRate), data=loan) + 
+  geom_point(alpha=1/20, aes(color=CreditScoreRangeLower), position=position_jitter(h=0)) +
+  geom_boxplot(alpha=0.5) + 
+  theme(axis.text.x=element_text(angle = 45, hjust = 1)) +
+  scale_color_gradient(limits=c(500, 850), low="blue", high="red")
+```
+
+Listing categories "Not Available", Debt Consolidation, Business and Home Improvement have a high number of loans and median Borrower Rates on the lower side of half. Auto, "Other" and Hosehold Expenses have the highest number of loans with Borrower Rates on the higher side of half.
+
+
+# 5 Final Plots and Summary
+
+### 5.1 Plot One
+```{r echo=FALSE, warning=FALSE, message=FALSE, Plot_One}
+ggplot(aes(x=ListingCategory, y=BorrowerRate), data=loan) + 
+  geom_point(alpha=1/20, aes(color=CreditScoreRangeLower), position=position_jitter(h=0)) +
+  geom_boxplot(alpha=0.5) + 
+  theme(axis.text.x=element_text(angle = 45, hjust = 1)) +
+  scale_color_gradient(limits=c(500, 850), low="blue", high="red")
+```
+#### Description One
+This plot reveals some very interesting insights. The "Not Available" listing category shows a very high number of loans and a high number of loans given to borrowers with low credit. The blue coloring corresponds to a low interest rate and the plot clearly shows the most blue coloring on the "Not Available" box plot. This is a strange finding as not giving a reason for a loan could be seen as higher risk, yet low credit scores are getting more reasonable rates when compared with other categories. Having more detailed knowledge about the industry and why this trend may exist would shed some light. Discussing the trend with someone in the industry would be helpful in this scenario. Removing the "Not Available" loans from the data set would likely yeild higher correlations between other variables as that listing category likely skews the dataset for those with low credit scores.
+
+### 5.2 Plot Two
+```{r echo=FALSE, warning=FALSE, message=FALSE, Plot_Two}
+ggplot(aes(x=CreditScoreRangeLower, y=BorrowerRate), data=loan[loan$BankcardUtilization<1.5,]) +
+  geom_point(alpha=1/50,aes(color=BankcardUtilization), position=position_jitter(h=0)) +
+  coord_cartesian(xlim=c(450,900)) +
+  geom_line(stat = 'summary', fun.y = mean) +
+  geom_line(stat = 'summary', fun.y = quantile, fun.args = list(probs=0.1), linetype = 2) + 
+  geom_line(stat = 'summary', fun.y = quantile, fun.args=list(probs=0.5), linetype = 2) + 
+  geom_line(stat = 'summary', fun.y = quantile, fun.args=list(probs=0.9), linetype = 2) +
+  scale_color_gradient(limits=c(0, 1), low="blue", high="red")
+```
+
+#### Description Two
+The plot shows that those with lower Bankcard Utilization have higher credit scores and pay lower Borrower Rates. The blue is clearly concentrated in the bottom lower right corner of the plot. Those with high Bankcard Utilization tend to be on the left hand side of the plot with the lower credit scores and the higher borrower rates. On the far left side of the plot it shows that there are a few borrowers with very low Bankcard Utilization, low credit and higher borrower rates. This may show borrowers with very little credit or no credit and it is showing their utilization as 0.
+
+
+### 5.3 Plot Three
+```{r echo=FALSE, warning=FALSE, message=FALSE, Plot_Three}
+loan$CurDelBucket <- cut(loan$CurrentDelinquencies, c(-Inf,0,1,5,+Inf))
+
+ggplot(aes(x=round(AvailableBankcardCredit/100)*100, y=CreditScoreRangeLower), 
+       data=loan) +
+  geom_point(alpha=1/5, aes(color=CurDelBucket), position=position_jitter()) +
+  geom_line(stat = 'summary', fun.y = mean, linetype = 2, color='blue') + 
+  coord_cartesian(ylim=c(500,900), xlim=c(0,10000)) +
+  guides(color = guide_legend(override.aes = list(alpha = 1)))
+```
+
+#### Description Three
+The mean trendline shows that credit score increases as available credit increases. Layering on current delinquencies shows that those with more than 1 delinquency tend to have very poor credit and tend not to have much credit (blue and purple dots are clustered in the lower left corner between 500-600 credit score and less that $2500 available credit.) This makes sense as individuals with poor credit are not likely to have new loans approved, and those with current delinquencies will have poor credit and will also be rejected for new loans.
+
+------
+
+# 6 Reflection
+The loan dataset has many variables and many of these variables are cross correlated. This makes it very hard to determine cause and effect. Throughout the investigation I tried to answer two questions:
+  - What factors affect interest rate?
+  - What factors affect credit score?
+
+The assumption that I had was that a higher credit score will yield a lower interest rate. This correlation was true however credit score was only a one factor that predicted the interest rate. Several other factors played into the interest rate.
+
+The issue with multivariate plots is that all three variables tend to be correlated which means that you may be showing redundent information. For example, an individual with high available credit is more likely to have a good credit score and also more likely to have a lower interest rate. If I were to repeat the analysis or add to it later, I would look for variables that appear to have no correlation with credit score but do seem to correlate with interest rate. This may yield a multivariate plot that has more explanatory power or a clearer trend because both the x axis variable and the color variable are adding different information to the plot (when they are correlated with each other they are really just displaying somewhat redundant information).
