@@ -1,7 +1,7 @@
 ---
 title: "Udacity Project 4 - Loans Exploratory Data Analysis"
 author: "Nathan Cox"
-date: "October 16, 2016"
+date: "October 17, 2016"
 output: html_document
 ---
 
@@ -10,9 +10,12 @@ knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/', echo=FALSE,
                       warning=FALSE, message=FALSE)
 ```
 
-# 1 Load and Clean Data and Load Libraries
+# 1 Introduction to Dataset, Load and Clean Data and Load Libraries
 
-### 1.1 Load Libraries and Data
+### 1.1 Introduction to Dataset
+Prosper is a website that connects lenders with borrowers. It takes data from the lenders like credit score, employment history, and the reason for getting the loan and provides it to lenders. Lenders can choose who they wish to loan money to. Prosper provides a dataset of over 113,000 loans that were made with over 80 data points on each loan. This investigation sorts through the dataset to find interesting trends and create (hopefully) insightful graphics depicting these trends.
+
+### 1.2 Load Libraries and Data
 ```{r load libraries, echo=TRUE}
 library(ggplot2)
 library(GGally)
@@ -22,7 +25,7 @@ setwd("/home/nathan/Desktop/Nanodegree/P4 - Loan Data Visualization with R")
 loan = read.csv('prosperLoanData.csv')
 ```
 
-### 1.2 Transform Data
+### 1.3 Transform Data
 Listing data was provided as a numerical value with a separate legend. This section transforms it to a factor variable and adds back in the descriptions for each number. Also in this section the Occupation variable is reordered so that the boxplot later on is easier to read.
 
 Current Delinquencies is cut into 4 buckets to make a variable that can be more easily used to show color on a plot. The table function is used before cut to determine how to equally size the buckets. 
@@ -70,11 +73,12 @@ After the libraries and data are loaded, the next step is to take a look at the 
 #Create a standard function that plots a histogram and sets the binwidth
 create_hist <- function(variable, width = 0.01)
   return(ggplot(aes(x=variable), data=loan) + 
-    geom_histogram(binwidth=width))
+    geom_histogram(binwidth=width)) + labs(x=xlab)
 ```
 
 ```{r}
-create_hist(loan$CreditScoreRangeLower, 10) + coord_cartesian(xlim=c(350,900))
+create_hist(loan$CreditScoreRangeLower, 10) + 
+  coord_cartesian(xlim=c(350,900)) + labs(x="Credit Score")
 ```
 
 ```{r echo=TRUE}
@@ -86,7 +90,7 @@ Most credit scores for people getting loans on Prosper are between 600 and 800 w
 
 ```{r}
 create_hist(loan$BorrowerRate, 0.01) + 
-  scale_x_continuous(breaks=seq(0,0.4,0.05))
+  scale_x_continuous(breaks=seq(0,0.4,0.05)) + labs(x="Interest Rate")
 ```
 
 ```{r echo=TRUE}
@@ -98,17 +102,17 @@ The rate that most borrowers are charged looks like a normal distribution with m
 
 
 ```{r}
-create_hist(loan$EstimatedLoss, 0.005)
+create_hist(loan$EstimatedLoss, 0.005) + labs(x="Estimated Loss")
 ```
 
 ```{r echo=TRUE}
 summary(loan$EstimatedLoss)
 ```
 
-The estimated loss on most loans is less than 20%.
+The mean estimated loss is around 8% and the third quartile is 11.2%. This indicates that most loans lose less than 15%.
 
 ```{r}
-create_hist(loan$EstimatedReturn)
+create_hist(loan$EstimatedReturn) + labs(x="Estimate Return")
 ```
 
 ```{r echo=TRUE}
@@ -119,7 +123,7 @@ Nearly all loans have a positive Estimated Return. This is to be expected becaus
 
 
 ```{r}
-create_hist(loan$OpenRevolvingAccounts, 1)
+create_hist(loan$OpenRevolvingAccounts, 1) + labs(x="Open Revolving Accounts")
 ```
 
 ```{r echo=TRUE}
@@ -129,14 +133,16 @@ summary(loan$OpenRevolvingAccounts)
 This trend shows a positive skew. However the tail of the distribution is not long enough to use a log scale on the x axis to attempt to make the distribution more normal. The plot below changes the x axis to a logaritmic scale and you can see that the numbers are too clustered around 1 for it to transform the graph properly into a normal distribution.
 
 ```{r}
-create_hist(loan$OpenRevolvingAccounts, 0.05) + scale_x_log10()
+create_hist(loan$OpenRevolvingAccounts, 0.05) + scale_x_log10() +
+  labs(x="Open Revolving Accounts")
 ```
 
 
 ```{r}
 create_hist(loan$OpenRevolvingMonthlyPayment, 50) +
   coord_cartesian(xlim=c(1,quantile(loan$OpenRevolvingMonthlyPayment,
-                                    probs=0.99)))
+                                    probs=0.99))) +
+  labs(x="Open Revolving Monthly Payment")
 ```
 
 ```{r echo=TRUE}
@@ -150,7 +156,7 @@ The trend for open revolving monthly payment is similar the the revolving accoun
 create_hist(loan$OpenRevolvingMonthlyPayment, 0.05) +
   coord_cartesian(xlim=c(1,quantile(loan$OpenRevolvingMonthlyPayment,
                                     probs=0.999))) +
-  scale_x_log10()
+  scale_x_log10() + labs(x="Open Revolving Monthly Payment")
 ```
 
 
